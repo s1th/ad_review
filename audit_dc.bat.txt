@@ -1,0 +1,218 @@
+::=================================================
+:: Domain Controller Audit Script
+::
+:: Run this against a sample of domain controllers for the 
+:: domain being audited.  Additionally, be sure to have the 
+:: auditee run it agains the SCHEMA MASTER as there's 
+:: an important audit step related to that server.  
+::=================================================
+::create an %out_file% file for this server
+@ECHO off
+
+::Create out file and File header
+FOR /F "tokens=1 delims=" %%A in ('hostname') do SET HN=%%A
+SET out_file=%HN%_evidence.txt
+
+echo ==Host==  > %out_file%
+hostname       >> %out_file%
+echo:          >> %out_file%
+echo:          >> %out_file%
+
+:: Identify Schema Master
+echo ******************************************************************************************************************************** >> %out_file%
+echo =ADO.1.4=                                      >> %out_file% 
+echo:                                               >> %out_file%
+echo Identify schema master             			>> %out_file%
+echo cmd: dsquery server –hasfsmo schema            >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =ADO.1.4= dsquery server –hasfsmo schema
+dsquery server –hasfsmo schema 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
+
+::Authentication Protocols and Anonymous Access
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.2.1=                          							             >> %out_file% 
+echo =AA.3.1= 						                                         >> %out_file%
+echo:                                             							 >> %out_file%
+echo Identify authentication protocols allowed and anonymous access setting  >> %out_file%
+echo cmd: reg query HKLM\systme\CurrentControlSet\Control\LSA    			 >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.2.1=
+echo =AA.3.1= reg query HKLM\system\CurrentControlSet\Control\LSA
+reg query HKLM\system\CurrentControlSet\Control\LSA 2>>errors.txt 1>>%out_file%
+
+::Get local user accounts
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.1=										>> %out_file%
+echo:												>> %out_file%
+echo List all local user accounts                   >> %out_file%
+echo cmd: net user   								>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.1= net user									
+net user 2>>errors.txt 1>>%out_file%
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get details for local user accounts
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.2=										>> %out_file%
+echo:												>> %out_file%
+echo Details for all local user accounts            >> %out_file%
+echo cmd: net user [user_account_name]       		>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.2= net user [user_account_name]
+FOR /F "skip=4 tokens=1,2,3" %%i in ('net user') do (
+	net user %%i 2>>errors.txt 1>>%out_file%
+	net user %%j 2>>errors.txt 1>>%out_file%
+	net user %%k 2>>errors.txt 1>>%out_file%
+)
+
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get a listing of all local groups
+echo ******************************************************************************************************************************** >> %out_file%
+echo: =AA.4.3=										>> %out_file%
+echo:												>> %out_file%
+echo Listing of all local groups                    >> %out_file%
+echo cmd: net localgroup                    		>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.3= net localgroup
+net localgroup 2>>errors.txt 1>>%out_file%
+
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get members of all local groups
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.4=										>> %out_file%
+echo:												>> %out_file%
+echo Get members of all local groups                >> %out_file%
+echo cmd: net localgroup [group_name]       		>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.4.4= net localgroup [group_name]
+FOR /F "skip=4 tokens=1 delims=*" %%i in ('net localgroup') do (
+	echo *** %%i *** >>%out_file%
+	net localgroup "%%i" 2>>errors.txt 1>>%out_file%
+)
+
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get file permissions on system directories
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.1=										>> %out_file%
+echo:												>> %out_file%
+echo Get file permissions on system directories     >> %out_file%
+echo cmd: cacls [system_directories]         		>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.1= cacls [system_directories]
+cacls C:\Windows\inf      2>>errors.txt 1>>%out_file%
+cacls C:\Windows\NTDS     2>>errors.txt 1>>%out_file%
+cacls C:\Windows\ntfrs    2>>errors.txt 1>>%out_file%
+cacls C:\Windows\repair   2>>errors.txt 1>>%out_file%
+cacls C:\Windows\security 2>>errors.txt 1>>%out_file%
+cacls C:\Windows\system   2>>errors.txt 1>>%out_file%
+cacls C:\Windows\system32 2>>errors.txt 1>>%out_file%
+cacls C:\Windows\SYSVOL   2>>errors.txt 1>>%out_file%
+
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get shares
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.2= 										>> %out_file%
+echo:												>> %out_file%
+echo List all shares 			                    >> %out_file%
+echo cmd: net share 								>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.2= net share
+net share 2>>errors.txt 1>>%out_file%
+
+echo: 												>> %out_file%
+echo: 												>> %out_file%
+
+::Get share details
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.2=										>> %out_file%
+echo:												>> %out_file%
+echo List all share details                         >> %out_file%
+echo cmd: net share [share_name]             		>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =AA.5.2= net share [share_name]
+FOR /F "skip=4 tokens=1" %%i in ('net share') do (      
+	 net share %%i 2>>errors.txt 1>>%out_file%
+)
+	 
+echo:												>> %out_file%
+echo:										        >> %out_file%
+
+::Get services
+echo ******************************************************************************************************************************** >> %out_file%
+echo =ADVM.1.1=
+echo:
+echo List all services                              >> %out_file%
+echo cmd: sc query type= service state= all         >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =ADVM.1.1= sc query type= service state= all
+sc query type= service state= all 2>>errors.txt 1>>%out_file%
+
+echo: 												>> %out_file%
+echo: 												>> %out_file%
+
+:: Get account settings
+echo ******************************************************************************************************************************** >> %out_file%
+echo List account settings   						>> %out_file%
+echo cmd: net accounts 								>> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =EX.1= net accounts
+net accounts 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
+
+:: Document whether group policy is being used to secure the system
+echo ******************************************************************************************************************************** >> %out_file%
+echo Document group policy use						>> %out_file%
+echo cmd: gpresult /scope computer /z               >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =EX.2= gpresult /scope computer /z
+gpresult /scope computer /z 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
+
+:: Document IP security policy
+echo ******************************************************************************************************************************** >> %out_file%
+echo Document IP security policy					>> %out_file%
+echo cmd: netsh ipsec show policy all               >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =EX.3= netsh ipsec show policy all
+netsh ipsec show policy all 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
+
+:: Get list of running tasks
+echo ******************************************************************************************************************************** >> %out_file%
+echo Task list					                    >> %out_file%
+echo cmd: tasklist                                  >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =EX.4= tasklist
+tasklist 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
+
+:: Get connections information
+echo ******************************************************************************************************************************** >> %out_file%
+echo Get all connections information     			>> %out_file%
+echo cmd: netstat -b -v                             >> %out_file%
+echo ******************************************************************************************************************************** >> %out_file%
+echo =EX.5= netstat -b -v
+netstat -b -v 2>>errors.txt 1>>%out_file%
+
+echo:  												>> %out_file%
+echo: 												>> %out_file%
